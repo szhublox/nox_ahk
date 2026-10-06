@@ -56,9 +56,9 @@ int PHONEMES[] = { 0, 87, 88, 89, 83, 84, 85, 79, 80, 81 };
 #define MOD_ALT (1 << 1)
 #define MOD_SHIFT (1 << 2)
 
-int mod_ctrl = 0; // TODO
-int mod_alt = 0; // TODO
-int mod_shift = 0; // TODO
+int mod_ctrl = 37;
+int mod_alt = 64;
+int mod_shift = 50;
 
 int SPELLS[][8] = {
     { 4, 8, 6, 8 },             // Missiles of Magic
@@ -126,21 +126,24 @@ void init_code(Display *display, char key, int mod, int spell) {
 
 void cast(Display *display, int *spell) {
     #define TIMER_SPELL 40000
-    #define TIMER_END 20000
+    #define TIMER_END 60000
 
     XTestFakeKeyEvent(display, 77, True, 0);
 
     for (int i = 0; i < MAX_SPELL_LENGTH && spell[i]; i++) {
         XTestFakeKeyEvent(display, PHONEMES[spell[i]], True, 0);
+        XFlush(display);
         usleep(TIMER_SPELL);
         XTestFakeKeyEvent(display, PHONEMES[spell[i]], False, 0);
+        XFlush(display);
         usleep(TIMER_SPELL);
-        // XFlush(display);
     }
 
     XTestFakeKeyEvent(display, PHONEMES[5], True, 0);
+    XFlush(display);
     usleep(TIMER_END);
     XTestFakeKeyEvent(display, PHONEMES[5], False, 0);
+    XFlush(display);
     usleep(TIMER_END);
 }
 
