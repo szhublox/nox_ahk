@@ -7,3 +7,7 @@ conjurer: main.c conjurer.c
 	$(CC) $(CFLAGS) conjurer.c -o conjurer
 wizard: main.c wizard.c
 	$(CC) $(CFLAGS) wizard.c -o wizard
+
+.PHONY: clean
+clean:
+	rm -f conjurer wizard
