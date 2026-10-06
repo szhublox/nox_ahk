@@ -1,13 +1,13 @@
+#include <X11/Intrinsic.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
-#include <X11/extensions/XInput2.h>
 #include <X11/Xutil.h>
-#include <X11/Intrinsic.h>
+#include <X11/extensions/XInput2.h>
 #include <X11/extensions/XTest.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <time.h>
 
 #define SPELL_MISSILES_OF_MAGIC 0
 #define SPELL_BURN 1
@@ -34,10 +34,19 @@
 #define SPELL_TELEPORT_TO_MARKER_2 22
 #define SPELL_TELEPORT_TO_MARKER_3 23
 #define SPELL_TELEPORT_TO_MARKER_4 24
+#define MAX_SPELLS (SPELL_TELEPORT_TO_MARKER_4 + 1)
 
-#define MAX_SPELL_LENGTH 7
+#define MAX_SPELL_LENGTH 8
 
-int SPELL_KEYCODES[] = { 0, 87, 88, 89, 83, 84, 85, 79, 80, 81 };
+int PHONEMES[] = { 0, 87, 88, 89, 83, 84, 85, 79, 80, 81 };
+
+#define MOD_CTRL (1 << 0)
+#define MOD_ALT (1 << 1)
+#define MOD_SHIFT (1 << 2)
+
+int mod_ctrl = 0; // TODO
+int mod_alt = 0; // TODO
+int mod_shift = 0; // TODO
 
 int SPELLS[][8] = {
     { 4, 8, 6, 8 },             // Missiles of Magic
@@ -71,28 +80,81 @@ int SPELLS[][8] = {
     { 2, 8, 4 },                // Teleport to Marker 4
 };
 
-char down[256] = { 0 };
+#define ARRAY_KEY 0
+#define ARRAY_MOD 1
+#define ARRAY_SPELL 2
+char spell_keys[MAX_SPELLS][3];
+
+void init_code(Display *display, char key, int mod, int spell) {
+    static int index = 0;
+
+    spell_keys[index][ARRAY_KEY] = XKeysymToKeycode(display, key);
+    spell_keys[index][ARRAY_MOD] = mod;
+    spell_keys[index][ARRAY_SPELL] = spell;
+
+    index++;
+}
+
+void init_codes(Display *display) {
+    init_code(display, 'q', 0, SPELL_MISSILES_OF_MAGIC);
+    init_code(display, 'w', 0, SPELL_BURN);
+    init_code(display, 'e', 0, SPELL_FIREBALL);
+    init_code(display, 'r', 0, SPELL_RING_OF_FIRE);
+    init_code(display, 't', 0, SPELL_SHOCK);
+    init_code(display, 'y', 0, SPELL_ENERGY_BOLT);
+
+    init_code(display, '`', 0, SPELL_BLINK);
+    init_code(display, '1', 0, SPELL_TELEPORT_TO_TARGET);
+    init_code(display, '2', 0, SPELL_COUNTERSPELL);
+    init_code(display, '3', 0, SPELL_INVERSION);
+    init_code(display, '4', 0, SPELL_REFLECTIVE_SHIELD);
+    init_code(display, '5', 0, SPELL_HASTE);
+    init_code(display, '6', 0, SPELL_TELEKINESIS);
+    init_code(display, '7', 0, SPELL_WALL);
+
+    init_code(display, 'q', MOD_CTRL, SPELL_SWAP_LOCATION);
+    init_code(display, 'w', MOD_CTRL, SPELL_DRAIN_MANA);
+
+    init_code(display, 'x', MOD_CTRL, SPELL_LESSER_HEAL);
+
+    init_code(display, '1', MOD_CTRL, SPELL_MARK_LOCATION_1);
+    init_code(display, '2', MOD_CTRL, SPELL_MARK_LOCATION_2);
+    init_code(display, '3', MOD_CTRL, SPELL_MARK_LOCATION_3);
+    init_code(display, '4', MOD_CTRL, SPELL_MARK_LOCATION_4);
+    init_code(display, '1', MOD_ALT, SPELL_MARK_LOCATION_1);
+    init_code(display, '2', MOD_ALT, SPELL_MARK_LOCATION_2);
+    init_code(display, '3', MOD_ALT, SPELL_MARK_LOCATION_3);
+    init_code(display, '4', MOD_ALT, SPELL_MARK_LOCATION_4);
+}
 
 void cast(Display *display, int *spell) {
+    #define TIMER_SPELL 40000
+    #define TIMER_END 20000
+
     XTestFakeKeyEvent(display, 77, True, 0);
 
-    for (int i = 0; i <= MAX_SPELL_LENGTH && spell[i]; i++) {
-        XTestFakeKeyEvent(display, SPELL_KEYCODES[spell[i]], True, 0);
-        usleep(40000);
-        XTestFakeKeyEvent(display, SPELL_KEYCODES[spell[i]], False, 0);
-        usleep(40000);
-        XFlush(display);
+    for (int i = 0; i < MAX_SPELL_LENGTH && spell[i]; i++) {
+        XTestFakeKeyEvent(display, PHONEMES[spell[i]], True, 0);
+        usleep(TIMER_SPELL);
+        XTestFakeKeyEvent(display, PHONEMES[spell[i]], False, 0);
+        usleep(TIMER_SPELL);
+        // XFlush(display);
     }
 
-    XTestFakeKeyEvent(display, SPELL_KEYCODES[5], True, 0);
-    usleep(40000);
-    XTestFakeKeyEvent(display, SPELL_KEYCODES[5], False, 0);
+    XTestFakeKeyEvent(display, PHONEMES[5], True, 0);
+    usleep(TIMER_END);
+    XTestFakeKeyEvent(display, PHONEMES[5], False, 0);
+    usleep(TIMER_END);
 }
+
+char down[256] = { 0 };
 
 int main() {
     Display* display = XOpenDisplay(NULL);
-    if (!display)
+    if (!display) {
+        fprintf(stderr, "display not found\n");
         return 1;
+    }
 
     Window win;
     win = DefaultRootWindow(display);
@@ -130,43 +192,17 @@ int main() {
             KeyCode keycode = d_ev->detail;
 
             if (d_ev->evtype == XI_RawKeyPress) {
+                int mod = MOD_CTRL * down[mod_ctrl] + MOD_ALT * down[mod_alt] + MOD_SHIFT * down[mod_shift];
+
                 down[keycode] = 1;
 
-                if (keycode == XKeysymToKeycode(display, 'q'))
-                    cast(display, SPELLS[SPELL_MISSILES_OF_MAGIC]);
-// q::Cast([4, 8, 6, 8])		;Missiles of Magic
-// w::Cast([2, 2, 8, 8])		;Burn
-// e::Cast([2, 2, 8])		;Fireball
-// r::Cast([3, 2, 1, 8])		;Ring of Fire
-// t::Cast([2, 6, 4, 4])		;Shock
-// y::Cast([2, 6, 4, 8])		;Energy Bolt
-//
-// `::Cast([6, 4, 8])		;Blink
-// 1::Cast([2, 8, 4, 6])		;Teleport to Target
-// 2::Cast([2, 3])			;Counterspell
-// 3::Cast([7, 9])			;Inversion
-// 4::Cast([8, 2, 2, 1, 3])	;Reflective Shield
-// 5::Cast([4, 6, 6])		;Haste
-// 6::Cast([2, 8, 2, 8])		;Telekinesis
-// 7::Cast([7, 8, 9])		;Wall
-//
-// ^q::Cast([8, 8, 2, 2])		;Swap Location
-// ^w::Cast([8, 7, 2, 9])		;Drain Mana
-//
-// ^x::Cast([3, 8, 1])		;Lesser Heal
-//
-// ^1::Cast([8, 2, 8])		;Mark Location 1
-// ^2::Cast([8, 2, 6])		;Mark Location 2
-// ^3::Cast([8, 2, 2])		;Mark Location 3
-// ^4::Cast([8, 2, 4])		;Mark Location 4
-// !1::Cast([2, 8, 8])		;Teleport to Marker 1
-// !2::Cast([2, 8, 6])		;Teleport to Marker 2
-// !3::Cast([2, 8, 2])		;Teleport to Marker 3
-// !4::Cast([2, 8, 4])		;Teleport to Marker 4
-//
-
-            }
-            else if (d_ev->evtype == XI_RawKeyRelease)
+                for (int i = 0; i < MAX_SPELLS; i++) {
+                    if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
+                        cast(display, SPELLS[spell_keys[i][ARRAY_SPELL]]);
+                        break;
+                    }
+                }
+            } else if (d_ev->evtype == XI_RawKeyRelease)
                 down[keycode] = 0;
         }
 
