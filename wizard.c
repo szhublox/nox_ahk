@@ -22,10 +22,10 @@ void init_codes(Display *display) {
 
     init_code(display, 'x', MOD_CTRL, SPELL_LESSER_HEAL);
 
-    init_code(display, '1', MOD_CTRL, SPELL_MARK_LOCATION_1);
-    init_code(display, '2', MOD_CTRL, SPELL_MARK_LOCATION_2);
-    init_code(display, '3', MOD_CTRL, SPELL_MARK_LOCATION_3);
-    init_code(display, '4', MOD_CTRL, SPELL_MARK_LOCATION_4);
+    init_code(display, '1', MOD_CTRL, SPELL_TELEPORT_TO_MARKER_1);
+    init_code(display, '2', MOD_CTRL, SPELL_TELEPORT_TO_MARKER_2);
+    init_code(display, '3', MOD_CTRL, SPELL_TELEPORT_TO_MARKER_3);
+    init_code(display, '4', MOD_CTRL, SPELL_TELEPORT_TO_MARKER_4);
     init_code(display, '1', MOD_ALT, SPELL_MARK_LOCATION_1);
     init_code(display, '2', MOD_ALT, SPELL_MARK_LOCATION_2);
     init_code(display, '3', MOD_ALT, SPELL_MARK_LOCATION_3);
