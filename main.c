@@ -128,8 +128,6 @@ void cast(Display *display, int *spell) {
     #define TIMER_SPELL 40000
     #define TIMER_END 60000
 
-    XTestFakeKeyEvent(display, 77, True, 0);
-
     for (int i = 0; i < MAX_SPELL_LENGTH && spell[i]; i++) {
         XTestFakeKeyEvent(display, PHONEMES[spell[i]], True, 0);
         XFlush(display);
@@ -150,50 +148,45 @@ void cast(Display *display, int *spell) {
 char down[256] = { 0 };
 
 int main() {
-    Display* display = XOpenDisplay(NULL);
+    Display *display;
+    Window win, winFocus;
+    XIEventMask evmasks;
+    // char keymap[32];
+    XEvent ev;
+    XGenericEventCookie *cookie;
+    int revert;
+    XIRawEvent *raw_ev;
+    KeyCode keycode;
+
+    display = XOpenDisplay(NULL);
     if (!display) {
         fprintf(stderr, "display not found\n");
         return 1;
     }
 
-    Window win;
     win = DefaultRootWindow(display);
-
-    XIEventMask evmasks;
-    XKeyEvent *keyevent;
 
     evmasks.deviceid = XIAllMasterDevices;
     evmasks.mask_len = XIMaskLen(XI_LASTEVENT);
-    evmasks.mask = (unsigned char*)calloc(evmasks.mask_len, sizeof(char));
-
+    evmasks.mask = (unsigned char*) calloc(evmasks.mask_len, sizeof(char));
     XISetMask(evmasks.mask, XI_RawKeyPress);
     XISetMask(evmasks.mask, XI_RawKeyRelease);
-
     XISelectEvents(display, win, &evmasks, 1);
-
-    XSync(display, False);
-
-    char ch[32];
 
     init_codes(display);
 
     while(1) {
-        XEvent ev;
-        XGenericEventCookie *cookie = (XGenericEventCookie*)&ev.xcookie;
-        XNextEvent(display, (XEvent*)&ev);
+        XNextEvent(display, (XEvent*) &ev);
+        cookie = (XGenericEventCookie*) &ev.xcookie;
 
-        Window winFocus;
-        int revert;
         XGetInputFocus(display, &winFocus, &revert);
-        // XSelectInput(display, winFocus, KeyPressMask | KeyReleaseMask);
+        XSelectInput(display, winFocus, KeyPressMask);
 
-        if (XGetEventData(display, cookie)
-                && cookie->type == GenericEvent
-                && ev.type == 35) {
-            XIDeviceEvent *d_ev = (XIDeviceEvent*) cookie->data;
-            KeyCode keycode = d_ev->detail;
+        if (XGetEventData(display, cookie) && cookie->type == GenericEvent) {
+            raw_ev = (XIRawEvent*) cookie->data;
+            keycode = raw_ev->detail;
 
-            if (d_ev->evtype == XI_RawKeyPress) {
+            if (raw_ev->evtype == XI_RawKeyPress) {
                 int mod = MOD_CTRL * down[mod_ctrl] + MOD_ALT * down[mod_alt] + MOD_SHIFT * down[mod_shift];
 
                 down[keycode] = 1;
@@ -204,7 +197,7 @@ int main() {
                         break;
                     }
                 }
-            } else if (d_ev->evtype == XI_RawKeyRelease)
+            } else if (raw_ev->evtype == XI_RawKeyRelease)
                 down[keycode] = 0;
         }
 
