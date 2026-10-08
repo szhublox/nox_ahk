@@ -15,10 +15,6 @@
 
 int PHONEMES[] = { 0, 87, 88, 89, 83, 84, 85, 79, 80, 81 };
 
-int mod_ctrl = 37;
-int mod_alt = 64;
-int mod_shift = 50;
-
 int SPELLS[][8] = {
     { 4, 8, 6, 8 },             // Missiles of Magic
     { 2, 2, 8, 8 },             // Burn
@@ -104,16 +100,28 @@ void cast(Display *display, int *spell) {
     usleep(TIMER_END);
 }
 
-char down[256] = { 0 };
+int query_modifier(Display *display) {
+    char keymap[32];
+    int mod;
+
+    #define MAP_CTRL 37
+    #define MAP_SHIFT 50
+    #define MAP_ALT 64
+
+    XQueryKeymap(display, keymap);
+    return ((keymap[MAP_CTRL / 8] >> MAP_CTRL % 8) & 1) * MOD_CTRL
+        + ((keymap[MAP_SHIFT / 8] >> MAP_SHIFT % 8) & 1) * MOD_SHIFT
+        + ((keymap[MAP_ALT / 8] >> MAP_ALT % 8) & 1) * MOD_ALT;
+}
 
 int main() {
     Display *display;
     Window win, winFocus;
     XIEventMask evmasks;
-    // char keymap[32];
     XEvent ev;
     XGenericEventCookie *cookie;
-    int revert;
+    int mod, revert;
+
     XIRawEvent *raw_ev;
     KeyCode keycode;
 
@@ -129,7 +137,6 @@ int main() {
     evmasks.mask_len = XIMaskLen(XI_LASTEVENT);
     evmasks.mask = (unsigned char*) calloc(evmasks.mask_len, sizeof(char));
     XISetMask(evmasks.mask, XI_RawKeyPress);
-    XISetMask(evmasks.mask, XI_RawKeyRelease);
     XISelectEvents(display, win, &evmasks, 1);
 
     init_codes(display);
@@ -143,21 +150,18 @@ int main() {
 
         if (XGetEventData(display, cookie) && cookie->type == GenericEvent) {
             raw_ev = (XIRawEvent*) cookie->data;
+            if (raw_ev->evtype != XI_RawKeyPress)
+                continue;
+
             keycode = raw_ev->detail;
+            mod = query_modifier(display);
 
-            if (raw_ev->evtype == XI_RawKeyPress) {
-                int mod = MOD_CTRL * down[mod_ctrl] + MOD_ALT * down[mod_alt] + MOD_SHIFT * down[mod_shift];
-
-                down[keycode] = 1;
-
-                for (int i = 0; i < MAX_SPELLS; i++) {
-                    if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
-                        cast(display, SPELLS[spell_keys[i][ARRAY_SPELL]]);
-                        break;
-                    }
+            for (int i = 0; i < MAX_SPELLS; i++) {
+                if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
+                    cast(display, SPELLS[spell_keys[i][ARRAY_SPELL]]);
+                    break;
                 }
-            } else if (raw_ev->evtype == XI_RawKeyRelease)
-                down[keycode] = 0;
+            }
         }
 
         XFreeEventData(display, cookie);
