@@ -3,11 +3,13 @@ CFLAGS = $(shell pkg-config --libs xi xtst x11)
 
 default: conjurer wizard
 
-conjurer: main.c conjurer.c
-	$(CC) $(CFLAGS) conjurer.c -o conjurer
-wizard: main.c wizard.c
-	$(CC) $(CFLAGS) wizard.c -o wizard
+main.o: main.c
+	$(CC) $(CFLAGS) -c $?
+conjurer: main.o conjurer.c
+	$(CC) $(CFLAGS) $? -o conjurer
+wizard: main.o wizard.c
+	$(CC) $(CFLAGS) $? -o wizard
 
 .PHONY: clean
 clean:
-	rm -f conjurer wizard
+	rm -f main.o conjurer wizard

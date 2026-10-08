@@ -1,4 +1,4 @@
-#include "main.c"
+#include "main.h"
 
 void init_codes(Display *display) {
     init_code(display, 'q', 0, SPELL_PIXIE_SWARM);
