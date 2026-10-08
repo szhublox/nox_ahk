@@ -139,6 +139,7 @@ int main() {
     XISetMask(evmasks.mask, XI_RawKeyPress);
     XISelectEvents(display, win, &evmasks, 1);
 
+    XTestFakeKeyEvent(display, 77, True, 0); // NUM_LOCK
     init_codes(display);
 
     while(1) {
