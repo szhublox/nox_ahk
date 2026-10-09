@@ -160,7 +160,6 @@ void cast(Display *display, int *spell) {
 
 int query_modifier(Display *display) {
     char keymap[32];
-    int mod;
 
     #define MAP_CTRL 37
     #define MAP_SHIFT 50
@@ -205,8 +204,11 @@ void *event_check(void *data) {
     int mod, revert;
     XIRawEvent *raw_ev;
     KeyCode keycode;
+    struct thread_args *args;
+    char *title;
+    struct queue_node *node, *next;
 
-    struct thread_args *args = data;
+    args = data;
 
     evmasks.deviceid = XIAllMasterDevices;
     evmasks.mask_len = XIMaskLen(XI_LASTEVENT);
@@ -222,6 +224,23 @@ void *event_check(void *data) {
         cookie = (XGenericEventCookie*) &ev.xcookie;
 
         XGetInputFocus(args->display, &winFocus, &revert);
+
+        XFetchName(args->display, winFocus, &title);
+        if (!(!strcmp(title, "Nox Game Window") || !strncmp(title, "OpenNox", 7))) {
+            if (args->node->spell >= 0)
+                args->node->spell = -1;
+            if (args->node->next) {
+                node = args->node->next;
+                node->next = NULL;
+                while (node) {
+                    next = node->next;
+                    free(node);
+                    node = next;
+                }
+            }
+            continue;
+        }
+
         XSelectInput(args->display, winFocus, KeyPressMask);
 
         if (XGetEventData(args->display, cookie) && cookie->type == GenericEvent) {
