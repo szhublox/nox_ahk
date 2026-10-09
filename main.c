@@ -80,7 +80,7 @@ void init_code(Display *display, char key, int mod, int spell) {
 }
 
 void cast(Display *display, int *spell) {
-    #define TIMER_SPELL 40000
+    #define TIMER_SPELL 45000
     #define TIMER_END 60000
 
     for (int i = 0; i < MAX_SPELL_LENGTH && spell[i]; i++) {
