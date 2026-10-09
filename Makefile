@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = $(shell pkg-config --libs xi xtst x11)
+CFLAGS = $(shell pkg-config --libs xi xtst x11) -g
 
 default: conjurer wizard
 
