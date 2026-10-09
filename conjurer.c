@@ -19,6 +19,15 @@ void init_codes(Display *display) {
 
     init_code(display, 'q', MOD_CTRL, SPELL_STUN);
     init_code(display, 'w', MOD_CTRL, SPELL_POISON);
+    init_code(display, 'e', MOD_CTRL, SPELL_SLOW);
 
-    init_code(display, 'x', MOD_CTRL, SPELL_LESSER_HEAL);
+    init_code(display, 'q', MOD_CTRL | MOD_SHIFT, SPELL_PROTECT_FROM_FIRE);
+    init_code(display, 'w', MOD_CTRL | MOD_SHIFT, SPELL_PROTECT_FROM_SHOCK);
+    init_code(display, 'e', MOD_CTRL | MOD_SHIFT, SPELL_PROTECT_FROM_POISON);
+
+    init_code(display, 'q', MOD_ALT, SPELL_SUMMON_EMBER_DEMON);
+    init_code(display, 'w', MOD_ALT, SPELL_SUMMON_SCORPION);
+    init_code(display, 'e', MOD_ALT, SPELL_SUMMON_STONE_GOLEM);
+
+    init_code(display, 'a', MOD_CTRL, SPELL_LESSER_HEAL);
 }
