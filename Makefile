@@ -3,8 +3,8 @@ CFLAGS = $(shell pkg-config --libs xi xtst x11)
 
 default: conjurer wizard
 
-main.o: main.c
-	$(CC) $(CFLAGS) -c $^
+main.o: main.h main.c
+	$(CC) $(CFLAGS) -c $(filter %.c,$?)
 conjurer: main.o conjurer.c
 	$(CC) $(CFLAGS) $^ -o conjurer
 wizard: main.o wizard.c
