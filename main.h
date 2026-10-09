@@ -107,6 +107,7 @@
 #define MOD_CTRL (1 << 0)
 #define MOD_ALT (1 << 1)
 #define MOD_SHIFT (1 << 2)
+#define MOD_SUPER (1 << 3)
 
 extern void init_codes(Display *display);
 void init_code(Display *display, char key, int mod, int spell);

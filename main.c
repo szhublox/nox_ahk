@@ -164,11 +164,13 @@ int query_modifier(Display *display) {
     #define MAP_CTRL 37
     #define MAP_SHIFT 50
     #define MAP_ALT 64
+    #define MAP_SUPER 133
 
     XQueryKeymap(display, keymap);
     return ((keymap[MAP_CTRL / 8] >> MAP_CTRL % 8) & 1) * MOD_CTRL
         + ((keymap[MAP_SHIFT / 8] >> MAP_SHIFT % 8) & 1) * MOD_SHIFT
-        + ((keymap[MAP_ALT / 8] >> MAP_ALT % 8) & 1) * MOD_ALT;
+        + ((keymap[MAP_ALT / 8] >> MAP_ALT % 8) & 1) * MOD_ALT
+        + ((keymap[MAP_SUPER / 8] >> MAP_SUPER % 8) & 1) * MOD_SUPER;
 }
 
 struct queue_node {
@@ -194,6 +196,25 @@ void queue_add(struct queue_node *node, int spell) {
     node->next = malloc(sizeof(struct queue_node));
     node->next->next = NULL;
     node->next->spell = spell;
+}
+
+void queue_clear(struct queue_node *node) {
+    struct queue_node *next;
+
+    if (node->spell >= 0)
+        node->spell = -1;
+
+    if (node->next) {
+        next = node->next;
+        node->next = NULL;
+        node = next;
+
+        while (node) {
+            next = node->next;
+            free(node);
+            node = next;
+        }
+    }
 }
 
 void *event_check(void *data) {
@@ -227,17 +248,7 @@ void *event_check(void *data) {
 
         XFetchName(args->display, winFocus, &title);
         if (!(!strcmp(title, "Nox Game Window") || !strncmp(title, "OpenNox", 7))) {
-            if (args->node->spell >= 0)
-                args->node->spell = -1;
-            if (args->node->next) {
-                node = args->node->next;
-                node->next = NULL;
-                while (node) {
-                    next = node->next;
-                    free(node);
-                    node = next;
-                }
-            }
+            queue_clear(args->node);
             continue;
         }
 
@@ -250,6 +261,10 @@ void *event_check(void *data) {
 
             keycode = raw_ev->detail;
             mod = query_modifier(args->display);
+            if (mod & MOD_SUPER) {
+                queue_clear(args->node);
+                continue;
+            }
 
             for (int i = 0; i < MAX_SPELLS; i++) {
                 if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
