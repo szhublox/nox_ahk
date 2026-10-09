@@ -247,7 +247,7 @@ void *event_check(void *data) {
         XGetInputFocus(args->display, &winFocus, &revert);
 
         XFetchName(args->display, winFocus, &title);
-        if (!(!strcmp(title, "Nox Game Window") || !strncmp(title, "OpenNox", 7))) {
+        if (!title || !(!strcmp(title, "Nox Game Window") || !strncmp(title, "OpenNox", 7))) {
             queue_clear(args->node);
             continue;
         }
