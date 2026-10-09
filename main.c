@@ -4,6 +4,7 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/extensions/XTest.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -171,16 +172,84 @@ int query_modifier(Display *display) {
         + ((keymap[MAP_ALT / 8] >> MAP_ALT % 8) & 1) * MOD_ALT;
 }
 
-int main() {
+struct queue_node {
+    struct queue_node *next;
+    int spell;
+};
+
+struct thread_args {
     Display *display;
-    Window win, winFocus;
+    Window win;
+    struct queue_node *node;
+};
+
+void queue_add(struct queue_node *node, int spell) {
+    if (node->spell < 0) {
+        node->spell = spell;
+        return;
+    }
+
+    while (node->next)
+        node = node->next;
+
+    node->next = malloc(sizeof(struct queue_node));
+    node->next->next = NULL;
+    node->next->spell = spell;
+}
+
+void *event_check(void *data) {
+    Window winFocus;
     XIEventMask evmasks;
     XEvent ev;
     XGenericEventCookie *cookie;
     int mod, revert;
-
     XIRawEvent *raw_ev;
     KeyCode keycode;
+
+    struct thread_args *args = data;
+
+    evmasks.deviceid = XIAllMasterDevices;
+    evmasks.mask_len = XIMaskLen(XI_LASTEVENT);
+    evmasks.mask = (unsigned char*) calloc(evmasks.mask_len, sizeof(char));
+    XISetMask(evmasks.mask, XI_RawKeyPress);
+    XISelectEvents(args->display, args->win, &evmasks, 1);
+
+    XTestFakeKeyEvent(args->display, 77, True, 0); // NUM_LOCK
+    init_codes(args->display);
+
+    while (1) {
+        XNextEvent(args->display, (XEvent*) &ev);
+        cookie = (XGenericEventCookie*) &ev.xcookie;
+
+        XGetInputFocus(args->display, &winFocus, &revert);
+        XSelectInput(args->display, winFocus, KeyPressMask);
+
+        if (XGetEventData(args->display, cookie) && cookie->type == GenericEvent) {
+            raw_ev = (XIRawEvent*) cookie->data;
+            if (raw_ev->evtype != XI_RawKeyPress)
+                continue;
+
+            keycode = raw_ev->detail;
+            mod = query_modifier(args->display);
+
+            for (int i = 0; i < MAX_SPELLS; i++) {
+                if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
+                    queue_add(args->node, spell_keys[i][ARRAY_SPELL]);
+                    break;
+                }
+            }
+        }
+
+        XFreeEventData(args->display, cookie);
+    }
+}
+
+int main() {
+    pthread_t thread;
+    Display *display;
+    Window win;
+    struct thread_args *args;
+    struct queue_node *to_free;
 
     display = XOpenDisplay(NULL);
     if (!display) {
@@ -189,43 +258,27 @@ int main() {
     }
 
     win = DefaultRootWindow(display);
+    args = malloc(sizeof(struct thread_args));
+    args->display = display;
+    args->win = win;
+    args->node = malloc(sizeof(struct queue_node));
+    args->node->next = NULL;
+    args->node->spell = -1;
 
-    evmasks.deviceid = XIAllMasterDevices;
-    evmasks.mask_len = XIMaskLen(XI_LASTEVENT);
-    evmasks.mask = (unsigned char*) calloc(evmasks.mask_len, sizeof(char));
-    XISetMask(evmasks.mask, XI_RawKeyPress);
-    XISelectEvents(display, win, &evmasks, 1);
+    pthread_create(&thread, NULL, event_check, args);
 
-    XTestFakeKeyEvent(display, 77, True, 0); // NUM_LOCK
-    init_codes(display);
-
-    while(1) {
-        XNextEvent(display, (XEvent*) &ev);
-        cookie = (XGenericEventCookie*) &ev.xcookie;
-
-        XGetInputFocus(display, &winFocus, &revert);
-        XSelectInput(display, winFocus, KeyPressMask);
-
-        if (XGetEventData(display, cookie) && cookie->type == GenericEvent) {
-            raw_ev = (XIRawEvent*) cookie->data;
-            if (raw_ev->evtype != XI_RawKeyPress)
-                continue;
-
-            keycode = raw_ev->detail;
-            mod = query_modifier(display);
-
-            for (int i = 0; i < MAX_SPELLS; i++) {
-                if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
-                    cast(display, SPELLS[spell_keys[i][ARRAY_SPELL]]);
-                    break;
-                }
-            }
+    while (1) {
+        if (args->node->spell >= 0) {
+            cast(args->display, SPELLS[args->node->spell]);
+            if (args->node->next) {
+                to_free = args->node;
+                args->node = args->node->next;
+                free(to_free);
+            } else
+                args->node->spell = -1;
         }
-
-        XFreeEventData(display, cookie);
+        usleep(1000);
     }
 
     XDestroyWindow(display, win);
-
-    return 0;
 }
