@@ -266,7 +266,7 @@ void *event_check(void *data) {
                 continue;
             }
 
-            for (int i = 0; i < MAX_SPELLS; i++) {
+            for (int i = 0; i <= MAX_SPELLS; i++) {
                 if (spell_keys[i][ARRAY_KEY] == keycode && spell_keys[i][ARRAY_MOD] == mod) {
                     queue_add(args->node, spell_keys[i][ARRAY_SPELL]);
                     break;
